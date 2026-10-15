@@ -2,34 +2,48 @@
 
 [中文](README.md) | [English](README.en.md)
 
-A planned lightweight, reliable macOS menu-bar manager: hide less-used icons and reveal them with a click.
+Hide occasional macOS menu-bar icons and reveal them with one click. A small native utility without an extra runtime to install.
 
-## Why it exists
+## What you get
 
-Menu-bar space is limited, especially on notched displays and across multiple monitors. When a manager stops responding or cannot enumerate items, hidden apps can become hard to reach. TinyBar aims to prioritize reliable reveal, recovery and low overhead.
+- One arrow to reveal/hide; Command-drag icons left of the divider to hide, or right to keep visible.
+- Reopen TinyBar to reveal items and recover a missing control. Quitting releases its hiding spacer.
+- No screenshots, network calls, Accessibility or Screen Recording permission. No background scanning or repeating timers.
+- Optional login startup, off by default.
 
-## Current status
+## Status and limitations
 
-**Planning stage: no runnable app, installer or verified compatibility claims yet.** This repository currently publishes product scope, technical validation plans and contribution guidance. It is not a finished Ice replacement.
+**0.1 experimental native app, buildable and locally installable from source.** Repeated hide/reveal behavior has been tested with real menu-bar items. It is not yet a fully validated Ice replacement.
 
-This is an independent implementation plan, not an Ice fork, and contains no Ice code. Any future third-party code reuse must retain its license and provenance.
+The app uses Swift/AppKit and system frameworks only. See [validation](docs/validation.md) for package size, CPU and memory measurements; scripts ship with the source. The system menu bar still has finite space: a notch or long application menu can obscure icons even when expanded. There is no separate floating icon panel.
 
-## First-version scope
+Hiding relies on macOS layout behavior without a compatibility guarantee. Launch, wake and display changes favor revealing; unsafe layouts stay expanded. Do not run Ice, Bartender or another manager simultaneously. Existing manager groups are not imported.
 
-- One menu-bar control to reveal or hide items.
-- Visible and hidden groups, preserving user arrangement and using native Command-drag where feasible.
-- A reachable control after display, resolution and sleep/wake changes.
-- Prefer restoring visibility on exit or failure, with an explicit recovery path.
-- Native implementation, event-driven where possible; avoid continuous scanning, screenshot caches and unnecessary permissions.
+## Get started
 
-These are planned features requiring verification. The first version excludes separate icon panels, visual themes, search and complex automation. See [product scope](docs/scope.md).
+Requires macOS 13+ and Apple Command Line Tools. Real-device checks currently cover Apple Silicon / macOS 26.4 only; Intel, other OS versions and more display scenarios remain unverified. The app UI is currently Chinese.
 
-## Get involved
+```bash
+git clone https://github.com/Jerryx333/tinybar.git
+cd tinybar
+bash scripts/build.sh
+bash scripts/install.sh
+open "$HOME/Applications/TinyBar.app"
+```
 
-Read the [validation plan](docs/roadmap.md), report reproducible behavior through Issues, or discuss the smallest useful feature set. Include macOS version, chip, display count and exact behavior. Avoid complete menu-bar screenshots or private application lists.
+Quit other managers, then Command-drag occasional icons left of `│`. Keep the TinyBar arrow on its right. Click the arrow to toggle; right-click for settings and quit.
 
-Check repository documentation with `bash scripts/check.sh`. App build instructions will be added when a runnable prototype exists. There is no need to quit or uninstall your current manager now.
+This is a locally ad hoc signed build without notarization. Read the [guide](docs/guide.md) for upgrades, login startup, recovery and uninstall. The installer retains previous bundles and does not change other apps' settings.
 
-Companion project: [TinyStat](https://github.com/Jerryx333/tinystat), a small CPU/GPU/memory and temperature monitor.
+## Develop and contribute
+
+```bash
+bash scripts/check.sh
+bash scripts/verify.sh
+```
+
+[Product scope](docs/scope.md) · [Validation roadmap](docs/roadmap.md) · [Contributing](CONTRIBUTING.md). Include OS version, chip, screen layout and reproduction steps when reporting issues. Avoid private app inventories or complete screen captures.
+
+Independent implementation, containing no Ice code. Companion project: [TinyStat](https://github.com/Jerryx333/tinystat), a small CPU/GPU/memory and temperature monitor.
 
 License: [Apache-2.0](LICENSE). Copyright 2026 Jerry.

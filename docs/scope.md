@@ -2,7 +2,7 @@
 
 [中文 README](../README.md) | [English README](../README.en.md)
 
-Status: proposal; nothing here is a claim of implemented behavior.
+Status: experimental native prototype. This file defines goals; actual coverage and limitations are recorded in [validation](validation.md).
 
 ## 用户需要 / User need
 
@@ -25,10 +25,10 @@ No separate icon mirror panel in the first version. Clicks should reach the orig
 
 Prefer Swift/AppKit, one process, system frameworks and event-driven updates. Do not introduce a periodic screenshot/enumeration loop simply to discover whether anything changed. Bound caches and retry attempts; never wait synchronously on work that depends on the main queue.
 
-Hiding other applications' status items may depend on undocumented OS behavior. A separator-width prototype is a candidate, not an established portable API. Validate conflicts with existing managers before adopting it. Do not assume status-item identity or accessibility permissions solve all layout operations.
+Hiding other applications' status items may depend on undocumented OS behavior. The prototype uses a separator-width technique, which is not an established portable API. Validate conflicts with existing managers before adopting it. Do not assume status-item identity or accessibility permissions solve all layout operations.
 
 Use least necessary permissions, with a reason tied to an implemented capability. Do not request screen recording for a design that never captures pixels. If experimentation shows another permission is required, document the evidence before adding it.
 
 ## Performance targets, not measurements
 
-Initial budgets: app bundle ≤5 MB, steady idle CPU ≤0.1% of one core, idle physical footprint ≤30 MiB. Report RSS separately. Measure cold launch, long idle, repeated toggling, large item counts, screen transitions and wakeups. Targets may be revised with explicit evidence; no results exist yet.
+Initial budgets: app bundle ≤5 MB, steady idle CPU ≤0.1% of one core, idle physical footprint ≤30 MiB. Report RSS separately. Measure cold launch, long idle, repeated toggling, large item counts, screen transitions and wakeups. Targets may be revised with explicit evidence; see [measurements](validation.md).

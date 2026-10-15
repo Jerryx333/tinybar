@@ -1,4 +1,4 @@
-name: Docs
+name: Check
 on: [push, pull_request]
 permissions:
   contents: read
@@ -12,3 +12,9 @@ jobs:
         with:
           python-version: '3.x'
       - run: bash scripts/check.sh
+  native:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/verify.sh

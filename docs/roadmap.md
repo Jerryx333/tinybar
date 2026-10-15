@@ -2,7 +2,7 @@
 
 [中文 README](../README.md) | [English README](../README.en.md)
 
-All stages below are pending. Documentation publication is not app delivery.
+The native 0.1 prototype is runnable. Stage 1 is implemented with bounded safety checks; stages 2–5 retain the outstanding gates below. See [current evidence](validation.md).
 
 ## 1. Prove the smallest reversible prototype
 
@@ -24,4 +24,4 @@ Publish reproducible benchmark scripts and sanitized summaries, including wall t
 
 ## 5. First release gate
 
-A release needs a runnable build path, passing relevant tests, real-machine validation evidence, known OS/hardware coverage, privacy documentation and installation/removal instructions. Packaging/signing/notarization status must be explicit. Until then, the README remains labeled planning stage.
+A release needs a runnable build path, passing relevant tests, real-machine validation evidence, known OS/hardware coverage, privacy documentation and installation/removal instructions. Packaging/signing/notarization status must be explicit. Until broader real-device gates pass, the README remains labeled experimental; no signed/notarized distribution is claimed.
