@@ -2,6 +2,17 @@ import AppKit
 
 // Pure geometry shared by the app and the headless layout tests.
 enum BarLayout {
+    static func keepsStripOpen(point: NSPoint, panel: NSRect, button: NSRect) -> Bool {
+        let bridge = NSRect(x: button.minX - 8, y: panel.maxY - 8,
+                            width: button.width + 16, height: max(0, button.minY - panel.maxY) + 16)
+        return panel.insetBy(dx: -6, dy: -6).contains(point) ||
+            button.insetBy(dx: -6, dy: -6).contains(point) || bridge.contains(point)
+    }
+
+    static func isHiddenGroup(_ item: CGRect, divider: CGRect) -> Bool {
+        abs(item.midY - divider.midY) <= 2 && item.maxX <= divider.minX + 1
+    }
+
     static let dividerWidth: CGFloat = 14
     static let controlWidth: CGFloat = 24
     // AppKit clamps very long status items on the tested OS. Always verify the resulting frame.

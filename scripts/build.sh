@@ -4,6 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 arch="${TINYBAR_ARCH:-$(uname -m)}"
+signing_identity="${TINYBAR_SIGNING_IDENTITY:--}"
 case "$arch" in arm64|x86_64) ;; *) echo "Unsupported architecture: $arch" >&2; exit 64 ;; esac
 mkdir -p build
 stage="$(mktemp -d build/.compile.XXXXXX)"
@@ -12,8 +13,11 @@ xcrun swiftc -Osize -whole-module-optimization -warnings-as-errors -swift-versio
   -target "$arch-apple-macosx13.0" Sources/*.swift \
   -framework AppKit -framework ServiceManagement -o "$stage/TinyBar.app/Contents/MacOS/TinyBar"
 cp Info.plist "$stage/TinyBar.app/Contents/Info.plist"
-codesign --force --sign - "$stage/TinyBar.app"
+codesign --force --sign "$signing_identity" "$stage/TinyBar.app"
 codesign --verify --strict "$stage/TinyBar.app"
+if [[ "$signing_identity" == - ]]; then
+  echo 'Ad hoc build: Accessibility authorization can expire when code changes. For local upgrades, set TINYBAR_SIGNING_IDENTITY to an existing Keychain code-signing identity.' >&2
+fi
 # Always construct from source; never sign stale resources in an old output bundle.
 if [[ -e build/TinyBar.app ]]; then mv build/TinyBar.app "$stage/previous.bundle"; fi
 if ! mv "$stage/TinyBar.app" build/TinyBar.app; then

@@ -5,7 +5,15 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 bash scripts/build.sh
 xcrun swiftc -O -whole-module-optimization -warnings-as-errors -target "$(uname -m)-apple-macosx13.0" Sources/Layout.swift tests/LayoutTests.swift -o build/test-layout
+xcrun swiftc -O -warnings-as-errors Sources/SelectionAnchor.swift tests/SelectionAnchorTests.swift -o build/test-selection-anchor
+build/test-selection-anchor
 build/test-layout
+xcrun swiftc -O -whole-module-optimization -warnings-as-errors -target "$(uname -m)-apple-macosx13.0" \
+  Sources/OverflowCatalog.swift Sources/StatusImageCache.swift tests/ImageCacheTests.swift -o build/test-image-cache
+build/test-image-cache
+xcrun swiftc -O -warnings-as-errors -target "$(uname -m)-apple-macosx13.0" \
+  Sources/MenuBarDisplay.swift tests/DisplayNameTests.swift -o build/test-display-names
+build/test-display-names
 xcrun clang -O2 -Wall -Wextra -Werror scripts/measure.c -o build/measure
 build/measure --self-check
 if [[ "${1:-}" == "--integration" ]]; then

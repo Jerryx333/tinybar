@@ -16,6 +16,8 @@ final class TinyBar: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDe
     private var helpText: NSTextField?
     private var isTerminating = false
     private var managerPresent = false
+    private var overflow: OverflowPanel?
+    private var selectionGeneration = 0
     private let controlName = "TinyBar.Control"
     private let dividerName = "TinyBar.Divider"
     // Exact IDs only. Best effort, not an exhaustive inventory of menu-bar managers.
@@ -51,6 +53,9 @@ final class TinyBar: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDe
         if !UserDefaults.standard.bool(forKey: "HasShownSetup") {
             UserDefaults.standard.set(true, forKey: "HasShownSetup")
             showHelp()
+        }
+        if CommandLine.arguments.contains("--show") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.openOverflow() }
         }
     }
 
@@ -97,21 +102,24 @@ final class TinyBar: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDe
 
     func watchEvents() {
         observe(.default, NSApplication.didChangeScreenParametersNotification) { [weak self] _ in
+            self?.overflow?.invalidateCache()
             self?.reveal()
         }
         let workspace = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.willSleepNotification, NSWorkspace.didWakeNotification] {
-            observe(workspace, name) { [weak self] _ in self?.reveal() }
+            observe(workspace, name) { [weak self] _ in self?.overflow?.invalidateCache(); self?.reveal() }
         }
         observe(workspace, NSWorkspace.didLaunchApplicationNotification) { [weak self] n in
             guard let app = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                   let id = app.bundleIdentifier, Self.managerIDs.contains(id) else { return }
             self?.managerPresent = true
+            self?.overflow?.close()
             self?.reveal()
         }
         observe(workspace, NSWorkspace.didTerminateApplicationNotification) { [weak self] n in
             guard let app = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                   let id = app.bundleIdentifier, Self.managerIDs.contains(id) else { return }
+            self?.overflow?.close()
             self?.managerPresent = self?.managerConflict() ?? false
             self?.issue = self?.managerPresent == true ? self?.conflictMessage : nil
             self?.updateControl()
@@ -125,6 +133,7 @@ final class TinyBar: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDe
     }
 
     func reveal() {
+        selectionGeneration += 1
         if collapsed { layoutReadyAfter = ProcessInfo.processInfo.systemUptime + 0.15 }
         cancelCheck()
         collapsed = false
@@ -217,7 +226,7 @@ final class TinyBar: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDe
         let symbol = issue == nil ? (hiding ? "chevron.left" : "chevron.right") : "exclamationmark.circle"
         button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
         button.image?.isTemplate = true
-        button.toolTip = issue ?? (hiding ? "TinyBar · 点击展开，右键设置" : "TinyBar · 点击收起，右键设置")
+        button.toolTip = issue
         button.setAccessibilityValue(pendingHide ? "正在收起" : (collapsed ? "已收起" : "已展开"))
     }
 
@@ -225,10 +234,65 @@ final class TinyBar: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDe
         let event = NSApp.currentEvent
         if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
             showMenu()
-        } else if collapsed || pendingHide {
-            reveal()
-        } else if !hide() {
-            showMenu()
+        } else if event?.modifierFlags.contains(.option) == true || clickedScreenHasNotch(event) {
+            openOverflow()
+        } else {
+            overflow?.close()
+            if collapsed || pendingHide { reveal() } else { _ = hide() }
+        }
+    }
+
+    private func clickedScreenHasNotch(_ event: NSEvent?) -> Bool {
+        // Status items can be mirrored across displays. The clicked display,
+        // not the main display or the status window's last screen, owns this choice.
+        let screen: NSScreen?
+        if event?.type == .leftMouseUp {
+            let point = NSEvent.mouseLocation
+            screen = NSScreen.screens.first { $0.frame.contains(point) }
+        } else {
+            screen = control.button?.window?.screen
+        }
+        return screen.map { $0.safeAreaInsets.top > 0 && $0.auxiliaryTopRightArea != nil } ?? false
+    }
+
+    private func openOverflow() {
+        guard let button = control.button else { return }
+        selectionGeneration += 1
+        guard let frame = button.window?.frame,
+              BarLayout.controlScreen(frame, screens: NSScreen.screens.map(\.frame)) != nil else {
+            issue = "入口不在可见菜单栏内，请先找回入口。"
+            showHelp()
+            return
+        }
+        if overflow == nil {
+            let panel = OverflowPanel()
+            panel.groupBoundary = { [weak self] in
+                guard let frame = self?.divider.button?.window?.frame,
+                      let primary = NSScreen.screens.first else { return nil }
+                return CGRect(x: frame.minX, y: primary.frame.maxY - frame.maxY,
+                              width: frame.width, height: frame.height)
+            }
+            panel.onSelect = { [weak self] entry, anchor in self?.openEntry(entry, at: anchor) }
+            overflow = panel
+        }
+        overflow?.toggle(relativeTo: button)
+    }
+
+    private func openEntry(_ entry: MenuBarEntry, at anchor: SelectionAnchor) {
+        reveal()
+        let expected = generation
+        let selection = selectionGeneration
+        // Original menus still belong to their application's status item. The
+        // captured anchor is reserved for a verified in-place interaction path.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard let self, self.generation == expected, self.selectionGeneration == selection, !self.isTerminating else { return }
+            MenuBarCatalog.press(entry) { [weak self] result in
+                guard let self, self.generation == expected, self.selectionGeneration == selection else { return }
+                if case .unavailable(let message) = result {
+                    self.issue = message
+                    self.updateControl()
+                }
+            }
         }
     }
 
@@ -248,6 +312,7 @@ final class TinyBar: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDe
         let m = NSMenu()
         m.autoenablesItems = false
         m.delegate = self
+        _ = add("刘海下方查看项目…", action: #selector(showOverflow), to: m)
         if let issue {
             _ = add(issue, action: nil, to: m)
             m.addItem(.separator())
@@ -276,6 +341,8 @@ final class TinyBar: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDe
 
     func menuDidClose(_ menu: NSMenu) { self.menu = nil }
 
+    @objc private func showOverflow() { openOverflow() }
+
     @objc private func toggleLogin() {
         do {
             switch SMAppService.mainApp.status {
@@ -298,6 +365,7 @@ final class TinyBar: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDe
     @objc private func openLoginSettings() { SMAppService.openSystemSettingsLoginItems() }
 
     @objc func showHelp() {
+        overflow?.close()
         let message = issue
         reveal()
         if helpWindow == nil {
@@ -331,7 +399,7 @@ final class TinyBar: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDe
             content.addSubview(done)
             helpWindow = window
         }
-        let instructions = "按住 ⌘ 拖动菜单栏图标：\n分隔线 │ 左侧会收起，右侧保持显示。\n把 TinyBar 箭头留在分隔线右侧。\n\n点击箭头展开 / 收起；右键打开设置。"
+        let instructions = "点击箭头展开/收起：刘海屏在下方续一排图标，\n普通屏幕直接展开原栏。\n按住 ⌘ 拖动图标，分隔线 │ 左侧隐藏。\n把箭头留在右侧。\n\n⌥ 点击在任意屏幕打开横排图标。\n右键可收起原栏、排列与退出。"
         helpText?.stringValue = message.map { "\($0)\n\n先展开，再按住 ⌘ 排列图标。" } ?? instructions
         helpWindow?.center()
         helpWindow?.makeKeyAndOrderFront(nil)
@@ -363,6 +431,7 @@ final class TinyBar: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDe
 
     func applicationWillTerminate(_ notification: Notification) {
         isTerminating = true
+        overflow?.close()
         reveal()
         for (center, token) in observers { center.removeObserver(token) }
         observers.removeAll()

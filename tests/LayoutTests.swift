@@ -2,6 +2,20 @@ import AppKit
 
 @main enum LayoutTests {
     static func main() {
+        let panel = NSRect(x: 100, y: 900, width: 600, height: 40)
+        let anchor = NSRect(x: 680, y: 950, width: 24, height: 24)
+        precondition(BarLayout.keepsStripOpen(point: NSPoint(x: 300, y: 920), panel: panel, button: anchor))
+        precondition(BarLayout.keepsStripOpen(point: NSPoint(x: 692, y: 945), panel: panel, button: anchor), "Crossing the gap must not close the strip")
+        precondition(!BarLayout.keepsStripOpen(point: NSPoint(x: 300, y: 850), panel: panel, button: anchor))
+        precondition(!BarLayout.keepsStripOpen(point: NSPoint(x: 800, y: 960), panel: panel, button: anchor))
+        let boundary = CGRect(x: -2000, y: -1437, width: 4000, height: 24)
+        let notchDivider = CGRect(x: 1254, y: 0, width: 30, height: 33)
+        precondition(BarLayout.isHiddenGroup(CGRect(x: 461, y: 4.5, width: 24, height: 24), divider: notchDivider), "AX button insets must not remove valid hidden items")
+        precondition(BarLayout.isHiddenGroup(CGRect(x: 888, y: 5.5, width: 22, height: 22), divider: notchDivider))
+        precondition(!BarLayout.isHiddenGroup(CGRect(x: 461, y: 0, width: 24, height: 24), divider: notchDivider), "Same top edge does not imply the same menu-bar row")
+        precondition(BarLayout.isHiddenGroup(CGRect(x: -2030, y: -1437, width: 24, height: 24), divider: boundary))
+        precondition(!BarLayout.isHiddenGroup(CGRect(x: 2100, y: -1437, width: 24, height: 24), divider: boundary), "Always-visible group must not be duplicated")
+        precondition(!BarLayout.isHiddenGroup(CGRect(x: -2030, y: 4, width: 24, height: 24), divider: boundary), "Other display row must not be mixed in")
         let screen = NSRect(x: 0, y: 0, width: 1920, height: 1080)
         let control = NSRect(x: 1700, y: 1056, width: 40, height: 24)
         let divider = NSRect(x: 1670, y: 1056, width: 30, height: 24)
